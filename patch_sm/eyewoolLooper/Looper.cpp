@@ -26,8 +26,11 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     button.Debounce();
     toggle.Debounce(); 
 
-    if(toggle.Pressed()){
+    bool ToggleState = toggle.Pressed(); 
+    if(ToggleState){
         // implement slip n slide here
+        // maybe this allows us to up date slip param
+        // otherwise it's ignored? 
     }
     // Knob CV_1 acts as a linear blend control between loop and new audio
     // at noon loop and new audio will be equal 
@@ -35,17 +38,19 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     float in_level = 1.f - loop_level; 
 
     //if you press the button, toggle the record state
+    // gate inputs 1 and 2 toggle left and right record 
+    bool Gate1State = patch.gate_in_1.State(); 
+    bool Gate2State = patch.gate_in_2.State(); 
     if(button.RisingEdge())
     {
         looper_l.TrigRecord();
         looper_r.TrigRecord();
     } 
-    // gate inputs 1 and 2 toggle left and right record 
-    else if(bool state = patch.gate_in_1.State())
+    else if(Gate1State)
     {
         looper_l.TrigRecord();
     } 
-    else if(bool state = patch.gate_in_2.State())
+    else if(Gate2State)
     {
         looper_r.TrigRecord();
     }
