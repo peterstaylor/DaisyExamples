@@ -52,6 +52,11 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         looper_r.Clear();
     }
 
+    // divide and offset feedback level to scale is 0.5->1
+    float feedback_level = (patch.GetAdcValue(CV_5) / 4.0f) + 0.75f; 
+    looper_l.SetDecayVal(feedback_level); 
+    looper_r.SetDecayVal(feedback_level); 
+
     // Set the led to 5V if the looper is recording
     patch.WriteCvOut(2, 5.f * looper_l.Recording());
 
