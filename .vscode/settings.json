@@ -89,6 +89,7 @@
                 }
             }
         ]
-    }
+    },
+    "cmake.sourceDirectory": "C:/Repos/DaisyExamples/DaisySP"
     
 }
