@@ -24,9 +24,10 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     patch.ProcessAllControls();
     button.Debounce();
 
-    // Set in and loop gain from CV_1 and CV_2 respectively
-    float in_level   = patch.GetAdcValue(CV_1);
-    float loop_level = patch.GetAdcValue(CV_2);
+    // Knob CV_1 acts as a linear blend control between loop and new audio
+    // at noon loop and new audio will be equal 
+    float loop_level = patch.GetAdcValue(CV_1);
+    float in_level = 1.f - loop_level; 
 
     //if you press the button, toggle the record state
     if(button.RisingEdge())
