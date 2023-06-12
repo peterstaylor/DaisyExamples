@@ -7,6 +7,7 @@ using namespace daisysp;
 
 DaisyPatchSM patch;
 Switch       button;
+Switch       toggle; 
 
 #define kBuffSize 48000 * 60 // 60 seconds at 48kHz
 
@@ -23,7 +24,11 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     // Process the controls
     patch.ProcessAllControls();
     button.Debounce();
+    toggle.Debounce(); 
 
+    if(toggle.Pressed()){
+        // implement slip n slide here
+    }
     // Knob CV_1 acts as a linear blend control between loop and new audio
     // at noon loop and new audio will be equal 
     float loop_level = patch.GetAdcValue(CV_1);
@@ -88,6 +93,8 @@ int main(void)
 
     // Init the button
     button.Init(patch.B7);
+    //init the toggle
+    toggle.Init(patch.B8); 
 
     // Start the audio callback
     patch.StartAudio(AudioCallback);
