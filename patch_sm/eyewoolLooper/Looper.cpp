@@ -34,6 +34,15 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     {
         looper_l.TrigRecord();
         looper_r.TrigRecord();
+    } 
+    // gate inputs 1 and 2 trigger left and right recording 
+    else if(bool state = patch.gate_in_1.State())
+    {
+        looper_l.TrigRecord();
+    } 
+    else if(bool state = patch.gate_in_2.State())
+    {
+        looper_r.TrigRecord();
     }
 
     // if you hold the button longer than 1000 ms (1 sec), clear the loop
