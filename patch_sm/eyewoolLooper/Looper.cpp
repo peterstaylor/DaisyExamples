@@ -35,7 +35,7 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         looper_l.TrigRecord();
         looper_r.TrigRecord();
     } 
-    // gate inputs 1 and 2 trigger left and right recording 
+    // gate inputs 1 and 2 toggle left and right record 
     else if(bool state = patch.gate_in_1.State())
     {
         looper_l.TrigRecord();
