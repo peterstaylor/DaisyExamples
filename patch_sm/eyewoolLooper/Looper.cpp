@@ -9,14 +9,19 @@ DaisyPatchSM patch;
 Switch       button;
 Switch       toggle; 
 
-#define kBuffSize 48000 * 60 // 60 seconds at 48kHz
+#define sampleRate 48000
+#define kBuffSize sampleRate * 60 // 60 seconds at 48kHz
 
 // Loopers and the buffers they'll use
 Looper              looper_l;
 Looper              looper_r;
+MoogLadder          filter_l; 
+MoogLadder          filter_r; 
 float DSY_SDRAM_BSS buffer_l[kBuffSize];
 float DSY_SDRAM_BSS buffer_r[kBuffSize];
 
+
+// ASSUME ALL ADC INPUTS GO FROM -1 TO 1??? 
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
                    size_t                    size)
@@ -26,13 +31,13 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     button.Debounce();
     toggle.Debounce(); 
 
-    bool ToggleState = toggle.Pressed(); 
+    /*bool ToggleState = toggle.Pressed(); 
     if(ToggleState){
         // implement slip n slide here
         // maybe this allows us to up date slip param
         // otherwise it's ignored? 
-    }
-    // Knob CV_1 acts as a linear blend control between loop and new audio
+    }*/
+    // Knob CV_1 acts as a blend control between loop and new audio
     // at noon loop and new audio will be equal 
     float loop_level = patch.GetAdcValue(CV_1);
     float in_level = 1.f - loop_level; 
@@ -62,8 +67,10 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         looper_r.Clear();
     }
 
-    // divide and offset feedback level to scale is 0.5->1
-    float feedback_level = (patch.GetAdcValue(CV_5) / 4.0f) + 0.75f; 
+    // CV_3 and CV_5 can simultaneously control the feedback level 
+    float feedback_knob = patch.GetAdcValue(CV_3); 
+    float feedback_jack = patch.GetAdcValue(CV_5); 
+    float feedback_level = fmap(feedback_knob+feedback_jack, 0.1f, 0.95f);  
     looper_l.SetDecayVal(feedback_level); 
     looper_r.SetDecayVal(feedback_level); 
 
@@ -78,8 +85,13 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         float in_r = IN_R[i] * in_level;
 
         // store signal = loop signal * loop gain + in * in_gain
+
         float sig_l = looper_l.Process(in_l) * loop_level + in_l;
         float sig_r = looper_r.Process(in_r) * loop_level + in_r;
+
+        // filter the loop only, leave teh input signal untouched
+        sig_l = filter_l.Process(sig_l) + in_l; 
+        sig_r = filter_r.Process(sig_r) + in_r; 
 
         // send that signal to the outputs
         OUT_L[i] = sig_l;
@@ -96,6 +108,10 @@ int main(void)
     looper_l.Init(buffer_l, kBuffSize);
     looper_r.Init(buffer_r, kBuffSize);
 
+    // init the filters
+    filter_l.Init(sampleRate); 
+    filter_r.Init(sampleRate); 
+
     // Init the button
     button.Init(patch.B7);
     //init the toggle
@@ -105,5 +121,8 @@ int main(void)
     patch.StartAudio(AudioCallback);
 
     // loop forever
-    while(1) {}
+    while(1) {
+    // i think i can process controls here
+
+    }
 }
