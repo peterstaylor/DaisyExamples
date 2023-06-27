@@ -1,6 +1,6 @@
 #include "daisy_patch_sm.h"
 #include "daisysp.h"
-#include <time.h>
+
 
 using namespace daisy;
 using namespace patch_sm;
@@ -14,8 +14,13 @@ Switch       toggle;
 #define kBuffSize sampleRate * 60 // 60 seconds at 48kHz
 #define filterTop 20000
 #define filterBottom 20
-#define resMin 0.05
+#define resMin 0.05f
 #define resMax 10
+#define wobbleStep 1000
+#define wobblePctMax 0.025f
+#define feedbackMin 0.1f
+#define feedbackMax 0.95f
+
 
 // Loopers and the buffers they'll use
 Looper              looper_l;
@@ -25,6 +30,11 @@ MoogLadder          filter_r;
 float DSY_SDRAM_BSS buffer_l[kBuffSize];
 float DSY_SDRAM_BSS buffer_r[kBuffSize];
 
+//assumes all knob values return as 0-1
+float combineKnobs(float knob1, float knob2){
+    float init_sum = knob1+ knob2; 
+    return init_sum > 1 ? 1 : init_sum; 
+}
 
 // ASSUME ALL ADC INPUTS GO FROM -1 TO 1??? 
 void AudioCallback(AudioHandle::InputBuffer  in,
@@ -122,39 +132,50 @@ int main(void)
     // Start the audio callback
     patch.StartAudio(AudioCallback);
 
+    // init random controller variables
+    int wobbleCounter = 0; 
+    float cornerRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
+    float resoRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
+    float feedbackRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
     // loop forever
     while(1) {
+    
+    switch (wobbleCounter){
+        case wobbleStep: 
+            cornerRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
+            break; 
+        case wobbleStep * 2: 
+            resoRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
+            break; 
+        case wobbleStep * 3: 
+            feedbackRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
+            break; 
+        case wobbleStep * 4: 
+            wobbleCounter = 0; 
+            break;
+    }
     patch.ProcessAnalogControls(); 
     
     // CV_3 and CV_5 can simultaneously control the feedback level 
     float feedback_knob = patch.GetAdcValue(CV_3); 
     float feedback_jack = patch.GetAdcValue(CV_5); 
-    float feedback_level = fmap(feedback_knob+feedback_jack, 0.1f, 0.95f);  
-    looper_l.SetDecayVal(feedback_level); 
-    looper_r.SetDecayVal(feedback_level); 
+    float feedback_knob_sum = combineKnobs(feedback_knob, feedback_jack); 
+    float feedback_level = fmap(feedback_knob_sum, feedbackMin, feedbackMax);  
+    looper_l.SetDecayVal(feedback_level * (1+feedbackRandom)); 
+    looper_r.SetDecayVal(feedback_level * (1-feedbackRandom)); 
 
     // CV_4 and CV_6 both control the filter
     // i want to try a thing where one knob controls resonance and cutoff for the LPF
     float filter_knob = patch.GetAdcValue(CV_4); 
     float filter_jack = patch.GetAdcValue(CV_6); 
-    float knob_sum = combineKnobs(filter_knob, filter_jack); 
-    float filter_corner = fmap(knob_sum, filterBottom, filterTop, Mapping::EXP); 
+    float filter_knob_sum = combineKnobs(filter_knob, filter_jack); 
+    float filter_corner = fmap(filter_knob_sum, filterBottom, filterTop, Mapping::EXP); 
     float filter_reso = fmap((1-knob_sum), resMin, resMax, Mapping::LOG); 
+    filter_l.SetFreq(filter_corner * (1+cornerRandom)); 
+    filter_r.SetFreq(filter_corner * (1-cornerRandom)); 
+    filter_l.SetRes(filter_reso * (1+resoRandom)); 
+    filter_r.SetRes(filter_reso * (1-resoRandom)); 
 
-    //todo add random wiggling on all of these 
-    filter_l.SetFreq(filter_corner); 
-    filter_r.SetFreq(filter_corner); 
-    filter_l.SetRes(filter_reso); 
-    filter_r.SetRes(filter_reso); 
+    wobbleCounter++; 
     }
-}
-
-//assumes all knob values return as 0-1
-float combineKnobs(float knob1, float knob2){
-    float init_sum = knob1+ knob2; 
-    return init_sum > 1 ? 1 : init_sum; 
-}
-
-float randomOffset(){
-
 }
