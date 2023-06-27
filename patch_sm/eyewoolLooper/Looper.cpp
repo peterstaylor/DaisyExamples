@@ -119,8 +119,8 @@ int main(void)
 
     // loop forever
     while(1) {
-    // i think i can process controls here
     patch.ProcessAnalogControls(); 
+    
     // CV_3 and CV_5 can simultaneously control the feedback level 
     float feedback_knob = patch.GetAdcValue(CV_3); 
     float feedback_jack = patch.GetAdcValue(CV_5); 
