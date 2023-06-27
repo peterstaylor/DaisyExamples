@@ -170,7 +170,7 @@ int main(void)
     float filter_jack = patch.GetAdcValue(CV_6); 
     float filter_knob_sum = combineKnobs(filter_knob, filter_jack); 
     float filter_corner = fmap(filter_knob_sum, filterBottom, filterTop, Mapping::EXP); 
-    float filter_reso = fmap((1-knob_sum), resMin, resMax, Mapping::LOG); 
+    float filter_reso = fmap((1-filter_knob_sum), resMin, resMax, Mapping::LOG); 
     filter_l.SetFreq(filter_corner * (1+cornerRandom)); 
     filter_r.SetFreq(filter_corner * (1-cornerRandom)); 
     filter_l.SetRes(filter_reso * (1+resoRandom)); 
