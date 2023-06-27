@@ -16,24 +16,44 @@ Switch       toggle;
 #define filterBottom 20
 #define resMin 0.05f
 #define resMax 10
-#define wobbleStep 1000
-#define wobblePctMax 0.025f
 #define feedbackMin 0.1f
 #define feedbackMax 0.95f
+#define maxWobbleAmp 0.05f //like a percentage of wobble
+#define maxWobbleFreq 0.25f // in Hz
 
 
 // Loopers and the buffers they'll use
 Looper              looper_l;
 Looper              looper_r;
-MoogLadder          filter_l; 
-MoogLadder          filter_r; 
 float DSY_SDRAM_BSS buffer_l[kBuffSize];
 float DSY_SDRAM_BSS buffer_r[kBuffSize];
 
-//assumes all knob values return as 0-1
+//filter for left and right side
+MoogLadder          filter_l; 
+MoogLadder          filter_r; 
+
+// internal LFOs to control random settings
+Oscillator          feedback_l_lfo; 
+Oscillator          feedback_r_lfo; 
+Oscillator          cutoff_l_lfo; 
+Oscillator          cutoff_r_lfo; 
+
+// various helper functions
 float combineKnobs(float knob1, float knob2){
     float init_sum = knob1+ knob2; 
     return init_sum > 1 ? 1 : init_sum; 
+}
+
+float createRandomFreq(){
+    float initRand = patch.GetRandomFloat() * maxWobbleFreq; 
+    initRand = initRand == 0 ? 0.01 : initRand; 
+    return initRand; 
+}
+
+float createRandomAmp(){
+    float initAmp = patch.GetRandomFloat() * maxWobbleAmp; 
+    initAmp = initAmp == 0 ? 0.001 : initAmp; 
+    return initAmp; 
 }
 
 // ASSUME ALL ADC INPUTS GO FROM -1 TO 1??? 
@@ -124,6 +144,33 @@ int main(void)
     filter_l.Init(sampleRate); 
     filter_r.Init(sampleRate); 
 
+    // init the random LFOs
+    // this looper does not care about your feelings
+    float randomFreqs[4]; 
+    for(int i : randomFreqs){
+        randomFreqs[i] = createRandomFreq(); 
+    }
+
+    float randomAmps[4]; 
+    for(int i : randomAmps){
+        randomAmps[i] = createRandomAmp(); 
+    }
+    feedback_l_lfo.Init(sampleRate); 
+    feedback_l_lfo.SetFreq(randomFreqs[0]); 
+    feedback_l_lfo.SetAmp(randomAmps[0]); 
+
+    feedback_r_lfo.Init(sampleRate); 
+    feedback_r_lfo.SetFreq(randomFreqs[1]); 
+    feedback_r_lfo.SetAmp(randomAmps[1]); 
+
+    cutoff_l_lfo.Init(sampleRate); 
+    cutoff_l_lfo.SetFreq(randomFreqs[2]); 
+    cutoff_l_lfo.SetAmp(randomAmps[2]); 
+
+    cutoff_r_lfo.Init(sampleRate); 
+    cutoff_r_lfo.SetFreq(randomFreqs[3]); 
+    cutoff_r_lfo.SetAmp(randomAmps[3]); 
+
     // Init the button
     button.Init(patch.B7);
     //init the toggle
@@ -131,38 +178,19 @@ int main(void)
 
     // Start the audio callback
     patch.StartAudio(AudioCallback);
-
-    // init random controller variables
-    int wobbleCounter = 0; 
-    float cornerRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
-    float resoRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
-    float feedbackRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
+    
     // loop forever
     while(1) {
-    
-    switch (wobbleCounter){
-        case wobbleStep: 
-            cornerRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
-            break; 
-        case wobbleStep * 2: 
-            resoRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
-            break; 
-        case wobbleStep * 3: 
-            feedbackRandom = (patch.GetRandomFloat()-0.5) * wobblePctMax; 
-            break; 
-        case wobbleStep * 4: 
-            wobbleCounter = 0; 
-            break;
-    }
+
     patch.ProcessAnalogControls(); 
     
     // CV_3 and CV_5 can simultaneously control the feedback level 
     float feedback_knob = patch.GetAdcValue(CV_3); 
     float feedback_jack = patch.GetAdcValue(CV_5); 
     float feedback_knob_sum = combineKnobs(feedback_knob, feedback_jack); 
-    float feedback_level = fmap(feedback_knob_sum, feedbackMin, feedbackMax);  
-    looper_l.SetDecayVal(feedback_level * (1+feedbackRandom)); 
-    looper_r.SetDecayVal(feedback_level * (1-feedbackRandom)); 
+    float feedback_level = fmap(feedback_knob_sum, feedbackMin, feedbackMax); 
+    looper_l.SetDecayVal(feedback_level * (1+feedback_l_lfo.Process())); 
+    looper_r.SetDecayVal(feedback_level * (1+feedback_r_lfo.Process())); 
 
     // CV_4 and CV_6 both control the filter
     // i want to try a thing where one knob controls resonance and cutoff for the LPF
@@ -171,11 +199,10 @@ int main(void)
     float filter_knob_sum = combineKnobs(filter_knob, filter_jack); 
     float filter_corner = fmap(filter_knob_sum, filterBottom, filterTop, Mapping::EXP); 
     float filter_reso = fmap((1-filter_knob_sum), resMin, resMax, Mapping::LOG); 
-    filter_l.SetFreq(filter_corner * (1+cornerRandom)); 
-    filter_r.SetFreq(filter_corner * (1-cornerRandom)); 
-    filter_l.SetRes(filter_reso * (1+resoRandom)); 
-    filter_r.SetRes(filter_reso * (1-resoRandom)); 
-
-    wobbleCounter++; 
+    filter_l.SetFreq(filter_corner * (1+cutoff_l_lfo.Process())); 
+    filter_r.SetFreq(filter_corner * (1+cutoff_r_lfo.Process())); 
+    filter_l.SetRes(filter_reso); 
+    filter_r.SetRes(filter_reso); 
     }
 }
+
