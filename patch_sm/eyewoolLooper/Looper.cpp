@@ -67,15 +67,12 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         looper_r.Clear();
     }
 
-    // CV_3 and CV_5 can simultaneously control the feedback level 
-    float feedback_knob = patch.GetAdcValue(CV_3); 
-    float feedback_jack = patch.GetAdcValue(CV_5); 
-    float feedback_level = fmap(feedback_knob+feedback_jack, 0.1f, 0.95f);  
-    looper_l.SetDecayVal(feedback_level); 
-    looper_r.SetDecayVal(feedback_level); 
-
     // Set the led to 5V if the looper is recording
-    patch.WriteCvOut(2, 5.f * looper_l.Recording());
+    // might need to play with this a bit
+    // but the idea is light is only full brightness if both sides are recording
+    float loopLeftRec =  2.5 * looper_l.Recording(); 
+    float loopRightRec = 2.5 * looper_r.Recording(); 
+    patch.WriteCvOut(2, loopLeftRec+loopRightRec);
 
     // Process audio
     for(size_t i = 0; i < size; i++)
@@ -123,6 +120,12 @@ int main(void)
     // loop forever
     while(1) {
     // i think i can process controls here
-
+    patch.ProcessAnalogControls(); 
+    // CV_3 and CV_5 can simultaneously control the feedback level 
+    float feedback_knob = patch.GetAdcValue(CV_3); 
+    float feedback_jack = patch.GetAdcValue(CV_5); 
+    float feedback_level = fmap(feedback_knob+feedback_jack, 0.1f, 0.95f);  
+    looper_l.SetDecayVal(feedback_level); 
+    looper_r.SetDecayVal(feedback_level); 
     }
 }
