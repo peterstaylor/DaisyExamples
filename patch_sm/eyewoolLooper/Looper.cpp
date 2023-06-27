@@ -1,5 +1,6 @@
 #include "daisy_patch_sm.h"
 #include "daisysp.h"
+#include <time.h>
 
 using namespace daisy;
 using namespace patch_sm;
@@ -11,6 +12,10 @@ Switch       toggle;
 
 #define sampleRate 48000
 #define kBuffSize sampleRate * 60 // 60 seconds at 48kHz
+#define filterTop 20000
+#define filterBottom 20
+#define resMin 0.05
+#define resMax 10
 
 // Loopers and the buffers they'll use
 Looper              looper_l;
@@ -127,5 +132,29 @@ int main(void)
     float feedback_level = fmap(feedback_knob+feedback_jack, 0.1f, 0.95f);  
     looper_l.SetDecayVal(feedback_level); 
     looper_r.SetDecayVal(feedback_level); 
+
+    // CV_4 and CV_6 both control the filter
+    // i want to try a thing where one knob controls resonance and cutoff for the LPF
+    float filter_knob = patch.GetAdcValue(CV_4); 
+    float filter_jack = patch.GetAdcValue(CV_6); 
+    float knob_sum = combineKnobs(filter_knob, filter_jack); 
+    float filter_corner = fmap(knob_sum, filterBottom, filterTop, Mapping::EXP); 
+    float filter_reso = fmap((1-knob_sum), resMin, resMax, Mapping::LOG); 
+
+    //todo add random wiggling on all of these 
+    filter_l.SetFreq(filter_corner); 
+    filter_r.SetFreq(filter_corner); 
+    filter_l.SetRes(filter_reso); 
+    filter_r.SetRes(filter_reso); 
     }
+}
+
+//assumes all knob values return as 0-1
+float combineKnobs(float knob1, float knob2){
+    float init_sum = knob1+ knob2; 
+    return init_sum > 1 ? 1 : init_sum; 
+}
+
+float randomOffset(){
+
 }
