@@ -57,7 +57,7 @@ float createRandomAmp(){
     return initAmp; 
 }
 
-// ASSUME ALL ADC INPUTS GO FROM -1 TO 1??? 
+
 void AudioCallback(AudioHandle::InputBuffer  in,
                    AudioHandle::OutputBuffer out,
                    size_t                    size)
@@ -118,7 +118,6 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         float in_r = IN_R[i] * in_level;
 
         // store signal = loop signal * loop gain + in * in_gain
-
         float sig_l = looper_l.Process(in_l) * loop_level + in_l;
         float sig_r = looper_r.Process(in_r) * loop_level + in_r;
 
@@ -185,6 +184,8 @@ int main(void)
 
     patch.ProcessAnalogControls(); 
     
+    // CV_1 is only used in the callback to set wet/dry gain
+
     // CV_3 and CV_5 can simultaneously control the feedback level 
     float feedback_knob = patch.GetAdcValue(CV_3); 
     float feedback_jack = patch.GetAdcValue(CV_5); 
@@ -206,10 +207,21 @@ int main(void)
     filter_r.SetRes(filter_reso); 
 
     // CV_2 and CV_8 both control the "slip" of the two sides
+    // slip just causes the left side to reset slightly faster 
+    // introduces phasing
     float slip_knob = patch.GetAdcValue(CV_2); 
     float slip_jack = patch.GetAdcValue(CV_8); 
     float slip_knob_sum = combineKnobs(slip_knob, slip_jack);
     float slip_control = fmap(filter_knob_sum, 0, slipMax); 
+    size_t left_rec_size = looper_l.GetRecSize(); 
+    if(left_rec_size > 0){
+        size_t rec_size_offset = slip_control * left_rec_size; 
+        looper_l.SetRecOffset(rec_size_offset); 
+    }
+
+    // CV_7 lets the user dynamically index through the right side? 
+
+    // use toggle to set both sides to slightly out of tune half speed? 
 
 
     }
