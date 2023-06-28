@@ -20,6 +20,7 @@ Switch       toggle;
 #define feedbackMax 0.95f
 #define maxWobbleAmp 0.05f //like a percentage of wobble
 #define maxWobbleFreq 0.25f // in Hz
+#define slipMax 0.1f // in percentage of record size
 
 
 // Loopers and the buffers they'll use
@@ -203,6 +204,14 @@ int main(void)
     filter_r.SetFreq(filter_corner * (1+cutoff_r_lfo.Process())); 
     filter_l.SetRes(filter_reso); 
     filter_r.SetRes(filter_reso); 
+
+    // CV_2 and CV_8 both control the "slip" of the two sides
+    float slip_knob = patch.GetAdcValue(CV_2); 
+    float slip_jack = patch.GetAdcValue(CV_8); 
+    float slip_knob_sum = combineKnobs(slip_knob, slip_jack);
+    float slip_control = fmap(filter_knob_sum, 0, slipMax); 
+
+
     }
 }
 
