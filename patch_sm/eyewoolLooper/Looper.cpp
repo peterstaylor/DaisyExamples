@@ -113,8 +113,8 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         float in_r = IN_R[i] * in_level;
 
         // store signal = loop signal * loop gain + in * in_gain
-        float sig_l = looper_l.Process(in_l) * loop_level + in_l;
-        float sig_r = looper_r.Process(in_r) * loop_level + in_r;
+        float sig_l = looper_l.Process(in_l) * loop_level;
+        float sig_r = looper_r.Process(in_r) * loop_level;
 
         // filter the loop only, leave teh input signal untouched
         sig_l = filter_l.Process(sig_l) + in_l; 
