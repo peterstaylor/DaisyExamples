@@ -21,6 +21,7 @@ Switch       toggle;
 #define maxWobbleAmp 0.05f //like a percentage of wobble
 #define maxWobbleFreq 0.25f // in Hz
 #define slipMax 0.1f // in percentage of record size
+#define maxDetune 0.03f // percentage
 
 
 // Loopers and the buffers they'll use
@@ -67,12 +68,6 @@ void AudioCallback(AudioHandle::InputBuffer  in,
     button.Debounce();
     toggle.Debounce(); 
 
-    /*bool ToggleState = toggle.Pressed(); 
-    if(ToggleState){
-        // implement slip n slide here
-        // maybe this allows us to up date slip param
-        // otherwise it's ignored? 
-    }*/
     // Knob CV_1 acts as a blend control between loop and new audio
     // at noon loop and new audio will be equal 
     float loop_level = patch.GetAdcValue(CV_1);
@@ -219,10 +214,31 @@ int main(void)
         looper_l.SetRecOffset(rec_size_offset); 
     }
 
-    // CV_7 lets the user dynamically index through the right side? 
+    // force the two sides to be starting from zero again
+    // could lead to an interestign control approach honestly?  
+    if(slip_control == 0){
+        looper_l.ResetPos(); 
+        looper_r.ResetPos(); 
+    }
+
+    // CV_7 causes left to slow down and right to speed up increment rate
+    float speed_jack = patch.GetAdcValue(CV_7); 
+    float speed_control = fmap(speed_jack, 0, maxDetune); 
+    looper_l.SetIncMult(1-speed_control); 
+    looper_r.SetIncMult(1+speed_control); 
 
     // use toggle to set both sides to slightly out of tune half speed? 
-
+    patch.ProcessDigitalControls(); 
+    toggle.Debounce(); 
+    if (toggle.RisingEdge())
+    {
+        looper_l.SetHalfSpeed(false); 
+        looper_r.SetHalfSpeed(false); 
+    } else if(toggle.FallingEdge())
+    {
+        looper_l.SetHalfSpeed(true); 
+        looper_r.SetHalfSpeed(true); 
+    }
 
     }
 }
