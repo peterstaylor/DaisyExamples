@@ -40,6 +40,10 @@ Oscillator          feedback_r_lfo;
 Oscillator          cutoff_l_lfo; 
 Oscillator          cutoff_r_lfo; 
 
+// compressor 
+Compressor          compressor_l;
+Compressor          compressor_r;  
+
 // various helper functions
 float combineKnobs(float knob1, float knob2){
     float init_sum = knob1+ knob2; 
@@ -117,9 +121,14 @@ void AudioCallback(AudioHandle::InputBuffer  in,
         float sig_r = looper_r.Process(in_r) * loop_level;
 
         // filter the loop only, leave teh input signal untouched
-        sig_l = filter_l.Process(sig_l) + in_l; 
-        sig_r = filter_r.Process(sig_r) + in_r; 
-
+        sig_l = filter_l.Process(sig_l);
+        sig_r = filter_r.Process(sig_r);
+        
+        // compress the looper output based on the input
+        // to do: tune compressor settings by ear
+        sig_l = compressor_l.Process(sig_l, in_l) + in_l; 
+        sig_r = compressor_r.Process(sig_r, in_r) + in_r; 
+        
         // send that signal to the outputs
         OUT_L[i] = sig_l;
         OUT_R[i] = sig_r;
@@ -170,6 +179,10 @@ int main(void)
     button.Init(patch.B7);
     //init the toggle
     toggle.Init(patch.B8); 
+
+    // Init the compressor 
+    compressor_l.Init(sampleRate); 
+    compressor_r.Init(sampleRate); 
 
     // Start the audio callback
     patch.StartAudio(AudioCallback);
